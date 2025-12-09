@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <title>Elektrodrošības tests (70 jautājumi)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      padding: 20px 24px 28px;
+    }
+    h1, h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+    .center{text-align:center;}
+
+    .btn{
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor:pointer;
+      font-size:15px;
+      margin:4px;
+    }
+    .btn-primary{background:#2563eb;color:white;}
+    .btn-secondary{background:#e5e7eb;color:#111827;}
+
+    .question-card{
+      border:1px solid #e5e7eb;
+      border-radius:8px;
+      padding:14px 16px;
+      margin-bottom:18px;
+    }
+    .question-meta{
+      font-size:13px;
+      color:#6b7280;
+      margin-bottom:4px;
+    }
+    .question-text{
+      font-size:16px;
+      margin-bottom:10px;
+    }
+    .option{
+      display:block;
+      padding:6px 8px;
+      margin-bottom:4px;
+      border-radius:4px;
+      border:1px solid transparent;
+      cursor:pointer;
+    }
+    .option:hover{
+      background:#f9fafb;
+      border-color:#d1d5db;
+    }
+    .option input{margin-right:6px;}
+
+    .nav-buttons{text-align:center;margin-top:10px;}
+    #progress{text-align:center;font-weight:600;margin-bottom:10px;}
+
+    .incorrect{border-color:#f97373;background:#fef2f2;}
+    .answer-line{font-size:14px;margin-top:4px;}
+    .correct-tag{color:#15803d;font-weight:600;}
+    .wrong-tag{color:#b91c1c;font-weight:600;}
+  </style>
+</head>
+<body>
+<div class="container">
+<!-- Sākuma ekrāns -->
+<div id="start-screen">
+  <h1>Elektrodrošības tests (70 jautājumi)</h1>
+  <p class="center">Pēc testa beigām redzēsi kļūdas un pareizās atbildes</p>
+  <div class="center">
+    <button class="btn btn-primary" onclick="startTest()">Sākt testu</button>
+  </div>
+</div>
+
+<!-- Testa ekrāns -->
+<div id="test-screen" style="display:none;">
+  <div id="progress"></div>
+  <div id="question-container" class="question-card">
+    <div class="question-meta" id="question-meta"></div>
+    <div class="question-text" id="question-text"></div>
+    <div id="options"></div>
+  </div>
+  <div class="nav-buttons">
+    <button id="prev-btn" class="btn btn-secondary" onclick="prevQuestion()">Iepriekšējais</button>
+    <button id="next-btn" class="btn btn-primary" onclick="nextQuestion()">Nākamais</button>
+    <button id="finish-btn" class="btn btn-primary" onclick="finishTest()" style="display:none;">Pabeigt testu</button>
+  </div>
+</div>
+
+<!-- Rezultātu ekrāns -->
+<div id="result-screen" style="display:none;">
+  <h2>Rezultāts</h2>
+  <div id="result-summary" class="center"></div>
+  <h3>Kļūdainās atbildes</h3>
+  <div id="mistakes-container"></div>
+  <div class="center" style="margin-top:16px;">
+    <button class="btn btn-secondary" onclick="location.reload()">Sākt no jauna</button>
+  </div>
+</div>
+<script>
+"use strict";
+
+let currentIndex = 0;
+let userAnswers = {};     // glabās atbildes: {id:variants}
+let questions = [];       // te pēc tam būs 70 jautājumi
+let answerKey = {};       // te ievietosim pareizās atbildes
+
+window.onload = function() {
+  document.getElementById("start-screen").style.display = "block";
+  document.getElementById("test-screen").style.display = "none";
+  document.getElementById("result-screen").style.display = "none";
+};
+
+function startTest(){
+  document.getElementById("start-screen").style.display = "none";
+  document.getElementById("test-screen").style.display = "block";
+  document.getElementById("result-screen").style.display = "none";
+
+  currentIndex = 0;
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const q = questions[currentIndex];
+  const total = questions.length;
+
+  document.getElementById("progress").textContent =
+    "Jautājums " + (currentIndex+1) + " no " + total;
+
+  document.getElementById("question-meta").textContent =
+    "Uzdevuma Nr.: " + q.id;
+
+  document.getElementById("question-text").innerHTML = q.text;
+
+  const optionsDiv = document.getElementById("options");
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((opt,i)=>{
+    const num = i+1;
+    let label = document.createElement("label");
+    label.className = "option";
+
+    let input = document.createElement("input");
+    input.type="radio";
+    input.name="answer";
+    input.value=num;
+
+    if(userAnswers[q.id]===num) input.checked=true;
+
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(opt));
+    optionsDiv.appendChild(label);
+  });
+
+  document.getElementById("prev-btn").disabled = currentIndex===0;
+  document.getElementById("next-btn").style.display =
+    currentIndex===total-1 ? "none" : "inline-block";
+  document.getElementById("finish-btn").style.display =
+    currentIndex===total-1 ? "inline-block" : "none";
+}
+
+function saveAnswer(){
+  const q = questions[currentIndex];
+  const radios=document.querySelectorAll('input[name="answer"]');
+  let chosen=null;
+  radios.forEach(r=>{if(r.checked)chosen=Number(r.value);});
+  if(chosen!==null) userAnswers[q.id]=chosen;
+}
+
+function nextQuestion(){
+  saveAnswer();
+  if(currentIndex < questions.length-1){
+    currentIndex++;
+    renderQuestion();
+  }
+}
+
+function prevQuestion(){
+  saveAnswer();
+  if(currentIndex>0){
+    currentIndex--;
+    renderQuestion();
+  }
+}
+
+function finishTest(){
+  saveAnswer();
+
+  const total = questions.length;
+  let correct=0;
+  let mistakes=[];
+
+  questions.forEach(q=>{
+    const correctOption = answerKey[q.id];
+    const userOption = userAnswers[q.id];
+    if(userOption===correctOption) correct++;
+    else{
+      mistakes.push({
+        question:q,
+        correctOption,
+        userOption
+      });
+    }
+  });
+
+  document.getElementById("test-screen").style.display="none";
+  document.getElementById("result-screen").style.display="block";
+
+  const percent = Math.round(correct/total*100);
+  document.getElementById("result-summary").textContent =
+    "Pareizi: "+correct+" / "+total+" ("+percent+"%)";
+
+  const box=document.getElementById("mistakes-container");
+  box.innerHTML="";
+
+  if(mistakes.length===0){
+    box.innerHTML="<p class='center'>Visi jautājumi pareizi!</p>";
+    return;
+  }
+
+  mistakes.forEach((item,i)=>{
+    const q=item.question;
+    const card=document.createElement("div");
+    card.className="question-card incorrect";
+
+    const meta=document.createElement("div");
+    meta.className="question-meta";
+    meta.textContent="Kļūda "+(i+1)+" – uzdevuma Nr. "+q.id;
+    card.appendChild(meta);
+
+    const text=document.createElement("div");
+    text.className="question-text";
+    text.textContent=q.text;
+    card.appendChild(text);
+
+    const userText=item.userOption
+      ? q.options[item.userOption-1]
+      :"Nav atbildēts";
+
+    const correctText=q.options[item.correctOption-1];
+
+    const u=document.createElement("div");
+    u.className="answer-line";
+    u.innerHTML="<span class='wrong-tag'>Tava atbilde:</span> <strong>"+userText+"</strong>";
+    card.appendChild(u);
+
+    const c=document.createElement("div");
+    c.className="answer-line";
+    c.innerHTML="<span class='correct-tag'>Pareizā atbilde:</span> <strong>"+correctText+"</strong>";
+    card.appendChild(c);
+
+    box.appendChild(card);
+  });
+}
+/* =======================
+   JAUTĀJUMU SARAKSTS (70 gab.)
+   ŠEIT IELIEC SAVUS JAUTĀJUMUS
+   ======================= */
+
+questions = [
+{ id:1, text:"Kāda ir kopējā pretestība paralēlajā slēgumā?", options:[
+"1) mazāka par mazāko no paralēli ieslēgto vadītāju pretestībām;",
+"2) mazāka par lielāko no paralēli ieslēgto vadītāju pretestībām;",
+"3) vienāda ar visu paralēli ieslēgto vadītāju pretestību summu;",
+"4) lielāka par paralēli ieslēgto vadītāju pretestību summu."
+]},
+{ id:2, text:"Kāds ir pirmais Kirhofa likums?", options:[
+"1) sazarošanās ķēdes mezglā strāvu algebriskā summa ir vienāda ar minimālo strāvu vienā zarā;",
+"2) sazarošanās ķēdes mezglā strāvu algebriskā summa ir vienāda ar 1;",
+"3) sazarošanās ķēdes mezglā strāvu algebriskā summa ir vienāda ar nulli;",
+"4) sazarošanās ķēdes mezglā strāvu algebriskā summa ir vienāda ar maksimālo strāvu vienā zarā."
+]},
+{ id:3, text:"Kādu instruktažu veic, lai atgādinātu darba aizsardzības noteikumu un instrukciju prasības, pārbaudītu un paaugstinātu nodarbināto zināšanas?", options:[
+"1) neplānoto instruktažu;",
+"2) atkārtoto instruktažu;",
+"3) mērķa instruktažu;",
+"4) sākotnējo instruktažu."
+]},
+{ id:4, text:"Attēlotais apzīmējums elektriskajā shēmā, saskaņā ar standartu LVSEN61082-1, ir…<br><img src='4.jpg' style='max-width:300px;'>", options:[
+"1) lustra;",
+"2) termolements;",
+"3) jaudas slēdzis;",
+"4) elektromagnētiskais atkabnis."
+]},
+{ id:5, text:"Aktīvo jaudu mēra…", options:[
+"1) vatos (W);",
+"2) varos (var);",
+"3) voltampēros (VA);",
+"4) ampēros (A)."
+]},
+{ id:6, text:"Kā sauc mērinstrumentu, ar kuru var mērīt gan strāvu, gan spriegumu, gan pretestību?", options:[
+"1) voltampērmetrs;",
+"2) vatmetrs;",
+"3) multivoltmetrs;",
+"4) multimetrs."
+]},
+{ id:7, text:"Kur jāatrodas darbiniekam, strādājot gaisvadu līnijas stūra balstos?", options:[
+"1) saules pusē, lai nebūtu apgrūtināta redzamība;",
+"2) lēņķa iekšpusē;",
+"3) lēņķa ārpusē;",
+"4) ar skatu pret sauli, lai labāk varētu veikt darbu."
+]},
+{ id:8, text:"Zemējuma un zibensaizsardzības ierīču pārbaudes un elektroinstalācijas izolācijas pretestības mērījumus parastas darbības objektā jāveic…", options:[
+"1) reizi desmit gados;",
+"2) reizi divos gados;",
+"3) vienu reizi gadā;",
+"4) reizi sešos mēnešos."
+]},
+{ id:9, text:"Kurš no dotajiem tīkliem izbūvēts TN–S sistēmā?<br><img src='9.jpg' style='max-width:600px;'>", options:[
+  "1) attēls Nr.1;",
+  "2) attēls Nr.2;",
+  "3) attēls Nr.3;",
+  "4) attēls Nr.4."
+]},
+{ id:10, text:"Kas ir maiņstrāva?", options:[
+"1) strāva, kas vienlaicīgi plūst abos virzienos;",
+"2) strāva, kas mainās tikai pēc lieluma;",
+"3) strāva, kas mainās tikai pēc virziena;",
+"4) strāva, kas periodiski pēc noteikta likuma mainās pēc lieluma un virziena."
+]},
+
+  { id:11, text:"Kādas ir elektrisko kontaktu materiālu galvenās īpašības?", options:[
+  "1) augsta mehāniskā izturība, maza elektriskā pretestība;",
+  "2) liela elektriskā pretestība, mazs blīvums;",
+  "3) mehāniski mīksti, augsta siltuma vadāmība;",
+  "4) korozijai nenoturīgi, mehāniski izturīgi."
+]},
+{ id:12, text:"Kas notiks ar metāla pretestību, ja metāla temperatūra paaugstināsies no 20 °C līdz 500 °C?", options:[
+  "1) nemainīsies;",
+  "2) samazināsies;",
+  "3) palielināsies;",
+  "4) nostabilizēsies."
+]},
+{ id:13, text:"Mazākais strāvas stiprums, kas rada muskuļu (satverošus) krampjus un sāpes pie strāvas iedarbības ilguma no 1 līdz 30 s, ir...", options:[
+  "1) sajūtamības strāva;",
+  "2) satverošā strāva;",
+  "3) nāvējošā strāva;",
+  "4) sajūtu sliekšņa strāva."
+]},
+{ id:14, text:"Kā sauc piejaukumu, kas pusvadītāja materiālā rada brīvo elektronu pārpalikumu?", options:[
+  "1) donorpiejaukums;",
+  "2) surogātpiejaukums;",
+  "3) akceptorpiejaukums;",
+  "4) dipolu piejaukums."
+]},
+{ id:15, text:"No kā ir atkarīgs līdzstrāvas dzinēja griešanās ātrums?", options:[
+  "1) no dzinēja gabarītiem;",
+  "2) no konstruktīvajām īpašībām;",
+  "3) no pievadītā sprieguma frekvences;",
+  "4) no pievadītā sprieguma lieluma."
+]},
+{ id:16, text:"Kāds strāvas stiprums būs elektriskajā ķēdē, ja strāvas avota EDS ir 1,5 V, iekšējā pretestība ir 0,3 Ω un sprieguma avotam pieslēgta 2,7 Ω rezistora pretestība?", options:[
+  "1) 0,5 A;",
+  "2) 1,5 A;",
+  "3) 2,0 A;",
+  "4) 2,5 A."
+]},
+{ id:17, text:"Kā sauc maiņstrāvas periodu skaitu vienā sekundē?", options:[
+  "1) līdzstrāvas fāze;",
+  "2) līdzstrāvas frekvence;",
+  "3) maiņstrāvas frekvence;",
+  "4) maiņstrāvas periods."
+]},
+{ id:18, text:"Elektriskās ķēdes shēma ir parādīta attēlā. Kāda ir strāvas virziens shēmā?<br><img src='18.jpg' style='max-width:450px;'>", options:[
+  "1) kondensatora darbības princips;",
+  "2) vienkāršs svārstību kontūrs;",
+  "3) reostata shematisks zīmējums;",
+  "4) strāvas taisngriezis darbībā."
+]},
+{ id:19, text:"Halogēna spuldzēm ir tāds pats darbības princips kā...", options:[
+  "1) gāzizlādes spuldzēm;",
+  "2) mirdzizlādes spuldzēm;",
+  "3) kvēlspuldzēm;",
+  "4) luminiscēntajām spuldzēm."
+]},
+{ id:20, text:"Elektroķēdes posmā ir rezistori R1, R2 un R3, ampērmetrs. Kā mainīsies strāvas stiprums?<br><img src='20.jpg' style='max-width:450px;'>", options:[
+  "1) 1 A;",
+  "2) 2 A;",
+  "3) 3 A;",
+  "4) 0,5 A."
+]},
+  { id:21, text:"Svirstslēdžus izmanto...", options:[
+  "1) sinhrono elektrodzinēju un elektroķēžu automātiskai ieslēgšanai un atslēgšanai;",
+  "2) bez slodzes esošu elektrodzinēju un elektroķēžu rokas ieslēgšanai un atslēgšanai;",
+  "3) asinhrono elektrodzinēju pārslēgšanai no zvaigznes uz trijstūri un palaišanas strāvas samazināšanai;",
+  "4) zem slodzes esošu elektroķēžu rokas ieslēgšanai un atslēgšanai avārijas gadījumā."
+]},
+{ id:22, text:"Kāds ir attēlā redzamo elektrisko elementu apzīmējums?<br><img src='22.jpg' style='max-width:450px;'>", options:[
+  "1) pretestības apzīmējumi;",
+  "2) kondensatoru shematiskie attēlojumi;",
+  "3) elektrodzinējspēka apzīmējumi;",
+  "4) transformatoru principālās shēmas."
+]},
+{ id:23, text:"Kurā skalas daļā mēraparāta ar vienmērīgu skalu relatīvā kļūda būs lielāka?", options:[
+  "1) skalas sākumā;",
+  "2) skalas vidū;",
+  "3) skalas galā;",
+  "4) pa visu skalu."
+]},
+{ id:24, text:"Trīsfāzu sistēma saslēgta trijstūrī (Δ). Līnijas spriegums 220 V. Kāds ir fāžu spriegums?", options:[
+  "1) 380 V;",
+  "2) 220 V;",
+  "3) 127 V;",
+  "4) 110 V."
+]},
+{ id:25, text:"Transformatora neitrālpunktam pievienotais vads, kas var līdzdarboties elektroenerģijas pārvadē, ir...", options:[
+  "1) aizsargvadītājs (PEN vads);",
+  "2) neitrālvads (N vads);",
+  "3) aizsargvads (PE vads);",
+  "4) potenciālu izlīdzināšanas sistēmas vads."
+]},
+{ id:26, text:"Kas var notikt, ja elektrodzinējs, kura minimālā strāva ir 20 A, aizsardzībai izmantots automāts ar nostrādes strāvu 20 A?", options:[
+  "1) izslēgums elektriskajā ķēdē;",
+  "2) ķēdes neatslēgšanās izolācijas bojājuma gadījumā;",
+  "3) elektriskās ķēdes pārtrūkšana;",
+  "4) motors sāks darboties cikliskā režīmā."
+]},
+{ id:27, text:"Elektropievadi sprādziendrošām telpām var instalēt...", options:[
+  "1) tikai termoizturīgās plastmasas caurulēs;",
+  "2) izmantojot tādus pašus materiālus, kā citās telpās;",
+  "3) gan tērauda, gan plastmasas caurulēs;",
+  "4) tērauda caurulēs ar noteiktu sienu biezumu."
+]},
+{ id:28, text:"Kāda ir elektrobīstamības zonas ārējā robeža 0,4 kV kailvadu līnijai?", options:[
+  "1) 0,3 m;",
+  "2) 0,6 m;",
+  "3) 0,8 m;",
+  "4) 1,0 m."
+]},
+{ id:29, text:"Kādai jābūt sadales iekārtas izolācijas pretestībai (līdz 1000 V)?", options:[
+  "1) vismaz 0,5 MΩ un lielākai;",
+  "2) vienādai ar 0;",
+  "3) zemākai par 0,5 MΩ;",
+  "4) līdz 0,2 MΩ."
+]},
+{ id:30, text:"Cik liels ir transformatora primārais spriegums, ja w₁=1200, w₂=300 un sekundārais spriegums ir 230 V?", options:[
+  "1) 57,5 V;",
+  "2) 230 V;",
+  "3) 920 V;",
+  "4) 1500 V."
+]},
+
+  { id:31, text:"Pusvadītājiem, paaugstinoties temperatūrai, īpatnējā pretestība...", options:[
+  "1) ir nulle;",
+  "2) palielinās;",
+  "3) nemainās;",
+  "4) samazinās."
+]},
+{ id:32, text:"Kā var samazināt (nemainot pārvadīto jaudu) sprieguma zudumus elektropārvades vados?", options:[
+  "1) palielinot strāvas lielumu;",
+  "2) paaugstinot līnijas spriegumu;",
+  "3) samazinot vadu šķērsgriezuma laukumu;",
+  "4) samazinot līnijas spriegumu."
+]},
+{ id:33, text:"Potenciālu izlīdzināšanu izmanto kā papildu elektroaizsardzības līdzekli...", options:[
+  "1) strāvas noplūdes lieluma kontrolēšanai uz iekārtas korpusu;",
+  "2) aizsardzībai no elektrotraumas, kas rodas vienfāzes īsslēguma gadījumā;",
+  "3) slēgšanaspretestības un soļa sprieguma samazināšanai;",
+  "4) elektroenerģijas patērētāja atdalīšanai no transformatora primārās ķēdes."
+]},
+{ id:34, text:"Kā mainīsies ampērmetra rādījums, ja atslēgs kvēlspuldzi EL3?<br><img src='34.jpg' style='max-width:450px;'>", options:[
+  "1) ampērmetra rādījums palielināsies;",
+  "2) ampērmetra rādījums samazināsies;",
+  "3) ampērmetra rādījums nemainīsies;",
+  "4) kvēlspuldze pārdegs."
+]},
+{ id:35, text:"Cik tinumi ir autotransformatoram?", options:[
+  "1) viens;",
+  "2) divi;",
+  "3) trīs;",
+  "4) četri."
+]},
+{ id:36, text:"Gaismas plūsmas mērvienība ir...", options:[
+  "1) Hz;",
+  "2) lm;",
+  "3) cd;",
+  "4) lx."
+]},
+{ id:37, text:"Gaisvadu līnijas gabarīta jēdziens ir vismazākais attālums pa vertikāli no zemes līdz…", options:[
+  "1) trošu piekares punktam;",
+  "2) trosei pie tās maksimālās nokares;",
+  "3) vadu piekares punktam;",
+  "4) vadiem pie tā maksimālās nokares."
+]},
+{ id:38, text:"Kura no kopējās pretestības R vērtībām atbilst dotajam ķēdes posma rezistoru slēgumam?<br><img src='38.jpg' style='max-width:400px;'>", options:[
+  "1) 0,8 Ω;",
+  "2) 5 Ω;",
+  "3) 4 Ω;",
+  "4) 1 Ω."
+]},
+{ id:39, text:"Caur cilvēka ķermeni plūstoša 50 Hz maiņstrāva var izraisīt elpošanas pārtraukumu un samaņas zaudēšanu, ja tās stiprums ir...", options:[
+  "1) līdz 4,5 mA;",
+  "2) 5–25 mA;",
+  "3) 35–45 mA;",
+  "4) 50–80 mA."
+]},
+{ id:40, text:"Aprēķināt pretestību 100 m garam vara vadam normālos apstākļos, ja šķērsgriezums ir 2,5 mm². Īpatnējā vara pretestība pie 20 °C ir 0,0175 Ω·mm²/m.", options:[
+  "1) 0,7 Ω;",
+  "2) 0,625 Ω;",
+  "3) 4,375 Ω;",
+  "4) 14286 Ω."
+]},
+
+  { id:41, text:"Kuram no minētajiem metāliem tā oksīds ir lielisks dielektriķis?", options:[
+  "1) niķelim;",
+  "2) alumīnijam;",
+  "3) dzelzij;",
+  "4) varam."
+]},
+{ id:42, text:"Kādā gadījumā formulā P=I×U×cos(φ), cos φ=1?", options:[
+  "1) ja ir tikai induktīvā slodze;",
+  "2) ja ir tikai kapacitatīvā slodze;",
+  "3) ja ir tikai aktīvā slodze;",
+  "4) ja kapacitatīvā slodze nav vienāda ar aktīvo slodzi."
+]},
+{ id:43, text:"Kurš no dotajiem materiāliem nav elektrovadītājs?", options:[
+  "1) germānijs;",
+  "2) silīcijs;",
+  "3) alumīnijs;",
+  "4) vizla."
+]},
+{ id:44, text:"Kurš no dotajiem materiāliem ir polimērs?", options:[
+  "1) transformatoru eļļa;",
+  "2) etilēns;",
+  "3) stikls;",
+  "4) vinilplastmasa."
+]},
+{ id:45, text:"Elektriskās strāvas lielums ir...", options:[
+  "1) spēks, kas iedarbojas uz pozitīvo nekustīgo lādiņu konkrētā elektriskā lauka punktā;",
+  "2) potenciālu starpība starp diviem elektriskā lauka punktiem noteiktā laika vienībā;",
+  "3) elektriskais lādiņš, kas laika vienībā izplūst caur vadītāja šķērsgriezumu;",
+  "4) spēks, kas iedarbojas uz kustīgo negatīvo lādiņu konkrētā elektriskā lauka punktā."
+]},
+{ id:46, text:"Kā var noteikt induktivitātes pretestību Xₗ, ja dota spoles induktivitāte L (H)?", options:[
+  "1) izmēra ar ommetru (Ω);",
+  "2) aprēķina pēc formulas Xₗ = 2πfL;",
+  "3) aprēķina pēc formulas Xₗ = √(x² + r²);",
+  "4) aprēķina pēc formulas Xₗ = 3·π·f·L."
+]},
+{ id:47, text:"Kādu materiālu izmanto maiņstrāvu asinhronu dzinēju īsi slēgtā rotora izgatavošanai?", options:[
+  "1) martensīta tēraudu;",
+  "2) ferītu;",
+  "3) čugunu (ketu);",
+  "4) silīcija elektrotehnisko tēraudu."
+]},
+{ id:48, text:"Kāda pretestība ir 100 paralēli saslēgtiem rezistoriem ar pretestību 120 Ω?", options:[
+  "1) 1200 Ω;",
+  "2) 120 Ω;",
+  "3) 12 Ω;",
+  "4) 1,2 Ω."
+]},
+{ id:49, text:"Cik liela ir asinhronā dzinēja slīde palaišanas brīdī?", options:[
+  "1) S = 0;",
+  "2) S ≈ 0;",
+  "3) S = 1;",
+  "4) S > 1."
+]},
+{ id:50, text:"Kā ieslēdz trīsfāzu maiņstrāvas asinhrono dzinēju?", options:[
+  "1) ieslēdz pēc kārtas pa vienai fāzei;",
+  "2) ieslēdz ar magnētisko palaidēju, vienlaicīgi 3 fāzes;",
+  "3) sākumā ieslēdz divas fāzes, pēc tam trešo;",
+  "4) sākumā ieslēdz rotoru, tad pakāpeniski pa vienai fāzei."
+]},
+
+  { id:51, text:"Kā mainīsies asinhronā dzinēja apgriezienu skaits, palielinot strāvas frekvenci?", options:[
+  "1) apgriezienu skaits palielināsies;",
+  "2) apgriezienu skaits nemainīsies;",
+  "3) apgriezienu skaits samazināsies;",
+  "4) apgriezienu skaits strauji samazināsies."
+]},
+{ id:52, text:"Kā var mainīt trīsfāzu asinhronā dzinēja griešanās virzienu?", options:[
+  "1) mainot strāvas frekvenci;",
+  "2) mainot vietām visu 3 fāžu galus;",
+  "3) mainot vietām 2 fāžu galus;",
+  "4) izslēdzot un ieslēdzot dzinēju."
+]},
+{ id:53, text:"Kurā atbildē pareizi noformulēts Oma likums?", options:[
+  "1) strāva ir tieši proporcionāla pretestībai un apgriezti proporcionāla spriegumam;",
+  "2) strāva ir tieši proporcionāla spriegumam un apgriezti proporcionāla pretestībai;",
+  "3) spriegums ir tieši proporcionāls strāvai un apgriezti proporcionāls pretestībai;",
+  "4) spriegums ir tieši proporcionāls pretestībai un apgriezti proporcionāls strāvai."
+]},
+{ id:54, text:"Vadītājus ar lielu īpatnējo pretestību izmanto...", options:[
+  "1) apkārszeme kabelu izgatavošanai;",
+  "2) kontaktoru izgatavošanai;",
+  "3) slodzes pretestību izgatavošanai;",
+  "4) iezemēšanas kontūru izgatavošanai."
+]},
+{ id:55, text:"Kura no iekārtām var pildīt ierosmes tinuma funkcijas līdzstrāvas dzinējam?", options:[
+  "1) droseli;",
+  "2) kondensators;",
+  "3) reostats;",
+  "4) pastāvīgais magnēts."
+]},
+{ id:56, text:"Elektroniskais relejs (sliekšņa elements) ir...", options:[
+  "1) elements, kas nelauj mainīt nostrādes un atgriešanās spriegumus;",
+  "2) elements ar konstantiem nostrādes un atgriešanās spriegumiem;",
+  "3) elements, kas nelauj mainīt atgriešanās spriegumu;",
+  "4) elements, kas pārsvarā paredzēts darbam ar sinusoidālas formas signāliem."
+]},
+{ id:57, text:"Ar ko elektriskās strāvas vadītāji atšķiras no dielektriķiem?", options:[
+  "1) ar lielu elektrisko īpatnējo pretestību;",
+  "2) ar mazu elektrisko īpatnējo pretestību;",
+  "3) ar molekulu spēju pārvietoties elektriskā laukā;",
+  "4) ar atomu spēju pārvietoties elektriskā laukā."
+]},
+{ id:58, text:"Pasākumu komplekss elektroiekārtu darba stāvokļa nodrošināšanai un darba procesā zaudēto elektroiekārtu īpašību atjaunošanai ir elektroiekārtu...", options:[
+  "1) ražošanas eksploatācija;",
+  "2) izmantošana saskaņā ar paredzēto mērķi;",
+  "3) nodošana ekspluatācijā;",
+  "4) tehniskā ekspluatācija."
+]},
+{ id:59, text:"Kāds spriegums ir spriegummaiņu sekundārajos tinumos?", options:[
+  "1) 500 V;",
+  "2) 300 V;",
+  "3) 100 V;",
+  "4) 50 V."
+]},
+{ id:60, text:"Kādam nolūkam elektroapgādes tīklos izmanto rezerves barošanu?", options:[
+  "1) avārijas apgaismojumam un apsardzes signalizācijai;",
+  "2) enerģijas padevei remontdarbu veikšanas laikā;",
+  "3) enerģijas padevei kontroles un vadības aparātiem;",
+  "4) nepārtrauktai enerģijas padevei patērētajam."
+]},
+  { id:61, text:"Cik un kādas elektriskās ķēdes ir līdzstrāvas mašīnai?", options:[
+  "1) divas: enkura ķēdes un ierosmes ķēde;",
+  "2) viena: ierosmes ķēde;",
+  "3) divas: ierosmes ķēde un vadības ķēde;",
+  "4) divas enkura ķēdes."
+]},
+{ id:62, text:"Ko apzīmē ar attēlā redzamo grafisko zīmi?<br><img src='62.jpg' style='max-width:300px;'>", options:[
+  "1) ģeneratoru;",
+  "2) induktivitātes spoli;",
+  "3) transformatoru;",
+  "4) uztvērējantenu."
+]},
+{ id:63, text:"Kura no attēlā redzamajām drošības zīmēm nozīmē «Bīstami – Elektrība»?<br><img src='63.jpg' style='max-width:500px;'>", options:[
+  "1) ! zīme;",
+  "2) darba aizsardzības zīme (zils aplis);",
+  "3) zibens brīdinājuma zīme;",
+  "4) galvaskaus un kauli (indes brīdinājums)."
+]},
+{ id:64, text:"Kurš no dotajiem vienādojumiem ir trīsfāzu maiņstrāvas aktīvās jaudas formula?", options:[
+  "1) P = U·I (W);",
+  "2) P = √3 · U1·I1 cos φ (W);",
+  "3) Q = √3 · U1·I1 sin φ (var);",
+  "4) P = U1 tg φ (W)."
+]},
+{ id:65, text:"“C” elektrodrošības kvalifikācijas grupu piešķir darbiniekam...", options:[
+  "1) bez speciālas izglītības un stāža ekspluatācijā esošās iekārtās;",
+  "2) ja ir saņemta apmācība par elektrodrošību, atbilst MK noteikumiem;",
+  "3) ja ir apgūts augstsprieguma kurss un 3 mēneši stāžs ar A grupu;",
+  "4) ja ir vismaz trešais kvalifikācijas līmenis un 3 mēneši stāžs ar B grupu."
+]},
+{ id:66, text:"Kādu materiālu izmanto lodāmuru sildelementu izgatavošanai?", options:[
+  "1) varu;",
+  "2) volframu;",
+  "3) nihromu;",
+  "4) konstantānu."
+]},
+{ id:67, text:"Kā jārīkojas, ja kravas celtņa izlice vai grozs nonāk spriegumaktīvā zonā?", options:[
+  "1) operatoram jāpārtrauc darbs un jāpiemēro drošības pasākumi;",
+  "2) operatoram jāpaziņo citiem objektā nodarbinātajiem;",
+  "3) jāpārvieto mehānismu tālāk no sprieguma zonas;",
+  "4) operatoram jāattālinās vismaz 8 metrus."
+]},
+{ id:68, text:"Minimālais attālums starp 0.4 kV piekarkabeļiem un pārlādumos ir...", options:[
+  "1) 0,2 m;",
+  "2) 0,3 m;",
+  "3) 0,5 m;",
+  "4) 1,0 m."
+]},
+{ id:69, text:"Elektriskās ķēdes zara strāvas lielumu mēra...", options:[
+  "1) paralēli pieslēgtu ampērmetru;",
+  "2) virkneslēgumu voltmetru;",
+  "3) virkneslēgumu ampērmetru;",
+  "4) līdzstrāvas mērlīto."
+]},
+{ id:70, text:"Elektriskā vada šķērsgriezumu izvēlas vadoties pēc...", options:[
+  "1) sprieguma lieluma;",
+  "2) sprieguma nesinusoidālās;",
+  "3) tīkla frekvences;",
+  "4) strāvas lieluma."
+]},
+
+];
+/* =======================
+   PAREIZĀS ATBILDES (1–70)
+   ======================= */
+answerKey = {
+  1:1,2:3,3:2,4:2,5:1,6:4,7:3,8:1,9:2,10:4,
+  11:1,12:3,13:2,14:1,15:4,16:1,17:3,18:2,19:3,20:1,
+  21:2,22:4,23:1,24:2,25:2,26:3,27:4,28:2,29:1,30:3,
+  31:4,32:2,33:3,34:2,35:1,36:2,37:4,38:1,39:4,40:1,
+  41:2,42:3,43:4,44:4,45:3,46:2,47:4,48:4,49:3,50:2,
+  51:1,52:3,53:2,54:3,55:4,56:1,57:2,58:4,59:3,60:4,
+  61:1,62:2,63:3,64:2,65:4,66:3,67:3,68:2,69:3,70:4
+};
+
+</script>
+</div>
+</body>
+</html>
